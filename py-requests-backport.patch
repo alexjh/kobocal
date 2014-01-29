@@ -1,0 +1,11 @@
+--- python-forcast.io-d06ecd832c4490a5b19e7f3f5ae796eac33c1077/forecastio/api.py.orig	2014-01-28 15:59:21.178787904 -0800
++++ python-forcast.io-d06ecd832c4490a5b19e7f3f5ae796eac33c1077/forecastio/api.py	2014-01-28 15:59:39.370235377 -0800
+@@ -52,7 +52,7 @@ def load_forecast(key, inLat, inLong, ti
+ 
+ 
+ def make_forecast(response):
+-    return Forecast(response.json(), response, response.headers)
++    return Forecast(response.json, response, response.headers)
+ 
+ 
+ def make_request(url):
