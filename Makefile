@@ -5,12 +5,15 @@
 # arm-linux-gnueabi/pulseaudio REQUESTS_CA_BUNDLE=/mnt/onboard/root/etc/ssl/certs/
 # ca-certificates.crt usr/bin/python2.7 ../test-pygame.py; cd ..
 
+# TODO mount iso as loop fs
+
 .PHONY: default all
 default : all
 
-all : .extracted
+all : root.tar.gz
 
-DEBS = mnt2/pool/main/p/pygame/python-pygame_1.9.1release+dfsg-8_armel.deb \
+DEBS = python-requests_0.12.1-1_all.deb \
+       mnt2/pool/main/p/pygame/python-pygame_1.9.1release+dfsg-8_armel.deb \
        mnt2/pool/main/libg/libgdata/gir1.2-gdata-0.0_0.12.0-1_armel.deb \
        mnt2/pool/main/libg/libgdata/libgdata-common_0.12.0-1_all.deb \
        mnt2/pool/main/libg/libgdata/libgdata13_0.12.0-1_armel.deb \
@@ -50,7 +53,6 @@ DEBS = mnt2/pool/main/p/pygame/python-pygame_1.9.1release+dfsg-8_armel.deb \
        mnt2/pool/main/s/sdl-mixer1.2/libsdl-mixer1.2_1.2.12-3_armel.deb \
        mnt2/pool/main/s/sdl-net1.2/libsdl-net1.2_1.2.8-2_armel.deb \
        mnt2/pool/main/s/sdl-ttf2.0/libsdl-ttf2.0-0_2.0.11-2_armel.deb \
-       mnt2/pool/main/o/openssl-blacklist/openssl-blacklist_0.5-3_all.deb \
        mnt2/pool/main/libp/libpng/libpng12-0_1.2.49-1_armel.deb \
        mnt2/pool/main/o/openssl/libcrypto1.0.0-udeb_1.0.1e-2_armel.udeb \
        mnt2/pool/main/p/pulseaudio/libpulse0_2.0-6.1_armel.deb \
@@ -77,7 +79,6 @@ DEBS = mnt2/pool/main/p/pygame/python-pygame_1.9.1release+dfsg-8_armel.deb \
        mnt2/pool/main/libo/libogg/libogg0_1.3.0-4_armel.deb \
        mnt2/pool/main/libv/libvorbis/libvorbisenc2_1.3.2-1.3_armel.deb \
        mnt2/pool/main/libv/libvorbis/libvorbis0a_1.3.2-1.3_armel.deb \
-       python-requests_0.12.1-1_all.deb \
        mnt2/pool/main/s/six/python-six_1.1.0-2_all.deb \
        mnt2/pool/main/c/ca-certificates/ca-certificates_20130119_all.deb \
        mnt2/pool/main/c/curl/curl_7.26.0-1+wheezy6_armel.deb \
@@ -86,6 +87,64 @@ DEBS = mnt2/pool/main/p/pygame/python-pygame_1.9.1release+dfsg-8_armel.deb \
        mnt2/pool/main/c/curl/libcurl4-openssl-dev_7.26.0-1+wheezy6_armel.deb \
        mnt2/pool/main/p/pycurl/python-pycurl_7.19.0-5_armel.deb \
        mnt2/pool/main/p/python-httplib2/python-httplib2_0.7.4-2+deb7u1_all.deb
+
+# The following dependencies are reported by ldd  but don't seem to have any
+# negative effect if they're removed:
+#
+#       mnt2/pool/main/o/openssl-blacklist/openssl-blacklist_0.5-3_all.deb \
+#       mnt2/pool/main/a/attr/libattr1_2.4.46-8_armel.deb \
+#       mnt2/pool/main/b/bzip2/libbz2-1.0_1.0.6-4_armel.deb \
+#       mnt2/pool/main/d/dbus/libdbus-1-3_1.6.8-1+deb7u1_armel.deb \
+#       mnt2/pool/main/f/freetype/libfreetype6_2.4.9-1.1_armel.deb \
+#       mnt2/pool/main/g/glib2.0/libglib2.0-0_2.33.12+really2.32.4-5_armel.deb \
+#       mnt2/pool/main/g/glib2.0/libglib2.0-bin_2.33.12+really2.32.4-5_armel.deb \
+#       mnt2/pool/main/g/glib2.0/libglib2.0-data_2.33.12+really2.32.4-5_all.deb \
+#       mnt2/pool/main/libx/libxml2/libxml2-utils_2.8.0+dfsg1-7+nmu2_armel.deb \
+#       mnt2/pool/main/libx/libxml2/libxml2_2.8.0+dfsg1-7+nmu2_armel.deb \
+#       mnt2/pool/main/libx/libxml2/python-libxml2_2.8.0+dfsg1-7+nmu2_armel.deb \
+#       mnt2/pool/main/libs/libsoup2.4/libsoup2.4-1_2.38.1-2_armel.deb \
+#       mnt2/pool/main/libs/libsoup2.4/libsoup-gnome2.4-1_2.38.1-2_armel.deb \
+#       mnt2/pool/main/libs/libssh/libssh-4_0.5.4-1_armel.deb \
+#       mnt2/pool/main/libs/libssh2/libssh2-1_1.4.2-1.1_armel.deb \
+#       mnt2/pool/main/e/elfutils/libelf1_0.152-1+wheezy1_armel.deb \
+#       mnt2/pool/main/libe/libelf/libelfg0_0.8.13-3_armel.deb \
+#       mnt2/pool/main/libf/libffi/libffi5_3.0.10-3_armel.deb \
+#       mnt2/pool/main/libg/libgcrypt11/libgcrypt11_1.5.0-5+deb7u1_armel.deb \
+#       mnt2/pool/main/x/xz-utils/liblzma5_5.1.1alpha+20120614-2_armel.deb \
+#       mnt2/pool/main/libo/liboauth/liboauth0_0.9.4-3.1_armel.deb \
+#       mnt2/pool/main/p/pcre3/libpcre3_8.30-5_armel.deb \
+#       mnt2/pool/main/p/portmidi/libportmidi0_184-2.1_armel.deb \
+#       mnt2/pool/main/r/rtmpdump/librtmp0_2.4+20111222.git4e06e21-1_armel.deb \
+#       mnt2/pool/main/libv/libvorbis/libvorbisfile3_1.3.2-1.3_armel.deb \
+#       mnt2/pool/main/libw/libwebp/libwebp2_0.1.3-3+nmu1_armel.deb \
+#       mnt2/pool/main/libm/libmad/libmad0_0.15.1b-7_armel.deb \
+#       mnt2/pool/main/libm/libmikmod/libmikmod2_3.1.12-5_armel.deb \
+#       mnt2/pool/main/s/smpeg/libsmpeg0_0.4.5+cvs20030824-5_armel.deb \
+#       mnt2/pool/main/n/nss/libnss3-1d_3.14.5-1_armel.deb \
+#       mnt2/pool/main/n/nss/libnss3_3.14.5-1_armel.deb \
+#       mnt2/pool/main/libg/libgnome-keyring/libgnome-keyring-common_3.4.1-1_all.deb \
+#       mnt2/pool/main/libg/libgnome-keyring/libgnome-keyring0_3.4.1-1_armel.deb \
+#       mnt2/pool/main/libs/libselinux/libselinux1_2.1.9-5_armel.deb \
+#       mnt2/pool/main/n/nspr/libnspr4-0d_4.9.2-1_armel.deb \
+#       mnt2/pool/main/n/nspr/libnspr4_4.9.2-1_armel.deb \
+#       mnt2/pool/main/o/openldap/libldap-2.4-2_2.4.31-1+nmu2_armel.deb \
+#       mnt2/pool/main/j/jbig2dec/libjbig2dec0_0.11+20120125-1_armel.deb \
+#       mnt2/pool/main/j/jbigkit/libjbig0_2.0-2_armel.deb \
+#       mnt2/pool/main/libi/libidn/libidn11_1.25-2_armel.deb \
+#       mnt2/pool/main/h/heimdal/libgssapi3-heimdal_1.6~git20120403+dfsg1-2_armel.deb \
+#       mnt2/pool/main/k/krb5/libgssapi-krb5-2_1.10.1+dfsg-5+deb7u1_armel.deb \
+#       mnt2/pool/main/libg/libgpg-error/libgpg-error0_1.10-3.1_armel.deb \
+#       mnt2/pool/main/g/gnutls26/libgnutls-openssl27_2.12.20-7_armel.deb \
+#       mnt2/pool/main/g/gnutls26/libgnutls26_2.12.20-7_armel.deb \
+#       mnt2/pool/main/g/gnutls26/libgnutlsxx27_2.12.20-7_armel.deb
+
+########################################################################
+# Downloaded items:
+########################################################################
+
+#
+# TODO: Cache them somewhere, make a clean target for the iso
+#
 
 FORCAST_SHA = d06ecd832c4490a5b19e7f3f5ae796eac33c1077
 
@@ -100,14 +159,31 @@ $(FORCAST_SHA).zip :
 	wget https://github.com/ZeevG/python-forcast.io/archive/$(FORCAST_SHA).zip
 
 rfc3339.py :
-	wget http://bitbucket.org/henry/rfc3339/src/tip/rfc3339.py
+	wget https://bitbucket.org/henry/rfc3339/raw/2576d7e29c161b4fad412f8b3785862d68c4b7b8/rfc3339.py
 
 debian-7.3.0-armel-DVD-1.iso :
 	wget http://cdimage.debian.org/debian-cd/7.3.0/armel/iso-dvd/debian-7.3.0-armel-DVD-1.iso
 
-.extracted : $(DEBS) python-forcast.io-$(FORCAST_SHA) debian-7.3.0-armel-DVD-1.iso rfc3339.py
+meteocons.ttf :
+	wget https://github.com/fontello/meteocons.font/blob/master/font/meteocons.ttf?raw=true -O $@
+
+python-requests_0.12.1-1_all.deb:
+	wget http://ftp.us.debian.org/debian/pool/main/r/requests/python-requests_0.12.1-1_all.deb
+
+mnt2/%deb : debian-7.3.0-armel-DVD-1.iso
+	mkdir -p $(@D)
+	isoinfo -i $< -RJ -x $(subst mnt2,,$@) > $@
+
+########################################################################
+
+.extracted : $(DEBS) \
+	     python-forcast.io-$(FORCAST_SHA) \
+	     debian-7.3.0-armel-DVD-1.iso \
+	     python-requests_0.12.1-1_all.deb \
+	     rfc3339.py \
+	     meteocons.ttf
 	mkdir -p root
-	@ cd root && $(foreach var,$(DEBS),(ar p ../$(var) data.tar.gz | tar zx) || (ar p ../$(var) data.tar.xz | tar Jx);)
+	@ cd root && $(foreach var,$(DEBS),(ar p ../$(var) data.tar.gz | tar zx) || (ar p ../$(var) data.tar.xz | tar Jx) || (ar p ../$(var) data.tar.bz2 | tar jx);)
 	rm -f root/bin/bunzip2 root/bin/bzcat
 	cp root/bin/bzip2 root/bin/bunzip2
 	cp root/bin/bzip2 root/bin/bzcat
@@ -115,8 +191,6 @@ debian-7.3.0-armel-DVD-1.iso :
 	rm -rf root/usr/lib/python2.[56] root/usr/lib/pyshared/python2.6
 	rm -f root/usr/lib/python2.7/dist-packages/pygame/freesansbold.ttf root/usr/share/pyshared/pygame/freesansbold.ttf
 	rm -f root/usr/lib/python2.7/sitecustomize.py root/usr/lib/ssl/private root/usr/lib/ssl/openssl.cnf
-	rm -f root/usr/share/terminfo/v/vt200 root/usr/share/terminfo/v/vt100-am root/usr/share/terminfo/v/vt220 root/usr/share/terminfo/v/vt100 root/usr/share/terminfo/s/sun1 root/usr/share/terminfo/s/sun root/usr/share/terminfo/s/sun2 root/usr/share/terminfo/c/cons25 root/usr/share/terminfo/n/nxterm root/usr/share/terminfo/a/ansi80x25 root/usr/share/terminfo/a/ansis root/usr/share/terminfo/x/xterm-color root/usr/share/terminfo/x/xterm-old root/usr/share/terminfo/x/xterm-r6 root/usr/share/pyshared/pygame/freesansbold.ttf
-	rm -rf root/usr/share/terminfo/N
 	rm -rf root/usr/share/terminfo
 	rm -f root/usr/lib/ssl/certs
 	mkdir -p root/etc/ssl/certs
@@ -128,33 +202,47 @@ debian-7.3.0-armel-DVD-1.iso :
 	cp rfc3339.py root/usr/lib/python2.7/dist-packages/
 	cp meteocons.ttf root/
 	cp -R python-forcast.io-$(FORCAST_SHA)/forecastio root/usr/lib/python2.7/dist-packages/
+	rm -rf root/usr/share/pyshared
+	rm -rf root/usr/share/locale
 	touch $@
 
 root.tar.gz : .extracted
 	tar czf $@ root
 
 .PHONY: upload
-upload : root.tar.gz 
+upload : root.tar.gz
 	curl -T root.tar.gz ftp://192.168.0.24/mnt/onboard/ --user anonymous:anonymous
 
 .PHONY: clean
 clean :
 	rm -f .extracted
 	rm -rf root
+	rm -rf dep-tree
 	rm -rf python-forcast.io-$(FORCAST_SHA) $(FORCAST_SHA).zip
 	rm -f ld-result.txt ld-result-filtered.txt ld-result-filtered-notfound.txt
 	rm -f rfc3339.py
+	rm -f meteocons.ttf
+
+# A slightly hacky way of finding library dependencies as crosstool's ldd
+# doesn't allow additional dirs to be specified, move the files to where
+# it expects them to be
 
 ld-result.txt : debian-7.3.0-armel-DVD-1.iso
 	mkdir -p dep-tree
-	@ cd dep-tree && $(foreach var,$(DEBS),(ar p ../$(var) data.tar.gz | tar zx) || (ar p ../$(var) data.tar.xz | tar Jx);)
-	mv dep-tree/lib/arm-linux-gnueabi/* dep-tree/lib
-	mv dep-tree/usr/lib/arm-linux-gnueabi/* dep-tree/usr/lib
-	find dep-tree -type f | grep -v py$$ | grep -v terminfo | xargs -L 1 ~/x-tools/arm-unknown-linux-gnueabi/bin/arm-unknown-linux-gnueabi-ldd --root dep-tree &> ld-result.txt
+	@ cd dep-tree && $(foreach var,$(DEBS),echo $(var); (ar p ../$(var) data.tar.gz | tar zx) || (ar p ../$(var) data.tar.xz | tar Jx) || (ar p ../$(var) data.tar.bz2 | tar jx);)
+	mv dep-tree/lib/arm-linux-gnueabi/* dep-tree/lib/
+	mv dep-tree/usr/lib/arm-linux-gnueabi/lib* dep-tree/usr/lib/
+	find dep-tree -type f | grep -v py$$ \
+		| grep -v terminfo \
+		| xargs -L 1 \
+		~/x-tools/arm-unknown-linux-gnueabi/bin/arm-unknown-linux-gnueabi-ldd \
+		--root dep-tree &> ld-result.txt
 
 ld-result-filtered.txt : ld-result.txt
 	grep -v ^readelf ld-result.txt > ld-result-filtered.txt
 
 ld-result-filtered-notfound.txt : ld-result-filtered.txt
-	grep "not found" ld-result-filtered.txt | sort | uniq > ld-result-filtered-notfound.txt
+	grep "not found" ld-result-filtered.txt \
+		| sort \
+		| uniq > ld-result-filtered-notfound.txt
 
