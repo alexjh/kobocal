@@ -1,10 +1,12 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
+
+import platform
+import ConfigParser
 
 import pygame
-import datetime
-import time
-import sys
+import array
+import os
 try:
     from xml.etree import ElementTree
 except ImportError:
@@ -23,16 +25,13 @@ import dateutil.parser
 from rfc3339 import rfc3339
 
 sys.path.append('./python-forcast.io/')
+sys.path.append('./python-forcast.io-d06ecd832c4490a5b19e7f3f5ae796eac33c1077')
 
 import forecastio
 
 # TODO:
 #
-# * Switch output depending on host
-# * Proper comments
-# * Make common surface base classes?
-# * Commonize coordinates - does PyGame have a class for this?
-# * Get username and password from a config file
+# * Dynamically read screen size and adjust
 # * Intelligently schedule the next time to wake up
 # * List today's holiday in the today pane
 # * Add a 'sleeps' countdown to holidays
@@ -42,7 +41,6 @@ import forecastio
 # * Show next day's sunrise/set if this one has already passed
 
 class DateSurface():
-
     def __init__( self, main_surface, origin, size, text_colour ):
         self.main_surface = main_surface
         self.origin = origin
@@ -70,15 +68,18 @@ class DateSurface():
         self.main_surface.blit(time_surface, (time_x, time_y))
 
 class CalendarSurface():
-    def __init__( self, main_surface, origin, size, text_colour ):
+    def __init__( self, 
+                  main_surface, 
+                  origin, 
+                  size, 
+                  text_colour, 
+                  email, 
+                  password ):
         self.main_surface = main_surface
         self.origin = origin
         self.width, self.height = size
         self.font = pygame.font.SysFont("Monospace", 32, bold=True)
         self.text_colour = text_colour
-
-        email = 'harford.family.ca@gmail.com'
-        password = 'nursing3221'
 
         self.cal_client = gdata.calendar.client.CalendarClient(source='kobo-cal')
         self.cal_client.ClientLogin(email, password, self.cal_client.source)
@@ -199,19 +200,22 @@ class CalendarSurface():
 
 
 class WeatherSurface():
-    def __init__( self, main_surface, origin, size, text_colour ):
+    def __init__( self, main_surface, origin, size, text_colour, api_key ):
         self.main_surface = main_surface
         self.origin = origin
         self.width, self.height = size
         self.font = pygame.font.SysFont("Monospace", 32, bold=True)
         self.text_colour = text_colour
 
-        self.API_KEY = "68696f026b692af2e381d0a91489de92"
+        self.API_KEY = api_key
         self.LAT = 49.2625
         self.LON = -122.7811
+
+        # There is a limit to how many calls can be made to the forecast.io API.
+        # Track the last update so we don't exceed the limit
         self.last_update = datetime.datetime.min
     
-        # Create a font for rendering text
+        # Create a font for rendering weather icons
         self.weather_font = pygame.font.Font("meteocons.ttf", 100)
 
         # Possible icon text from forecast.io:
@@ -298,6 +302,7 @@ class WeatherSurface():
                 weather_char = 'B'
 
             weather_surface = self.weather_font.render(weather_char, True, self.text_colour)
+            weather_surface2 = self.weather_font.render(weather_char, True, tuple( x + 80 for x in self.text_colour))
 
             precip_static_surface = self.font.render("Chance of Rain:",
                                                        True,
@@ -351,6 +356,7 @@ class WeatherSurface():
             y += 10
 
             centered_x = center - weather_surface.get_size()[0]/2
+            self.main_surface.blit(weather_surface2, (centered_x + 3, y + 3))
             self.main_surface.blit(weather_surface, (centered_x,y))
             y += int(weather_surface.get_size()[1] * 1.1)
             y += 10
@@ -379,8 +385,34 @@ class WeatherSurface():
 
 def main():
 
+    # Behaviour changes depending on which platform we are on
+    on_kobo = (platform.machine() == 'armv5tejl')
+    filename = '/tmp/x.pgm'
+
+    if on_kobo:
+        os.system('/usr/local/Kobo/pickel blinkoff')
+        os.system('killall nickel')
+
+    # Parse config file to pass items on to submodules
+    config = ConfigParser.ConfigParser()
+    CFG_FILE = '../.kobocal'
+    if config.read(CFG_FILE)[0] != CFG_FILE:
+        print "Error reading config file"
+        sys.exit(-1)
+
+    email = config.get('main', 'email')
+    password = config.get('main', 'password')
+    forecast_key = config.get('main', 'forecast-key')
+
+    if email == -1 or password == -1 or forecast_key == -1:
+        print "Error reading config file"
+        sys.exit(-1)
+
+    # Kobo WiFi dimensions
     width = 600
     height = 800
+
+    # Set up some defaults and layout the screen
 
     line_width = line_height = 3
     line_colour = (190,190,190)
@@ -403,8 +435,13 @@ def main():
                      (date_header_height + line_height))
 
 
+    # Create the pygame surfaces, they will be rendered to main_surface
+    # and set to the framebuffer or kobo screen.
     pygame.init()
-    main_surface = pygame.display.set_mode((width, height))
+    if on_kobo:
+        main_surface = pygame.Surface((width,height))
+    else:
+        main_surface = pygame.display.set_mode((width, height))
 
     date_surface = DateSurface(main_surface,
                                date_header_origin,
@@ -414,23 +451,22 @@ def main():
     weather_surface = WeatherSurface(main_surface,
                                      weather_origin,
                                      (weather_width, weather_height),
-                                     text_colour)
+                                     text_colour,
+                                     forecast_key)
 
     calendar_surface = CalendarSurface(main_surface,
                                        calendar_origin,
                                        (calendar_width, calendar_height),
-                                       text_colour)
+                                       text_colour,
+                                       email, password)
 
     while True:
-
-        # Look for an event from keyboard, mouse, joystick, etc.
-        ev = pygame.event.poll()
-        if ev.type == pygame.QUIT:   # Window close button clicked?
-            break                    # Leave game loop
+        buff=array.array('B')
 
         # Completely redraw the surface, starting with background
         main_surface.fill(background_colour)
 
+        # Add the borders
         pygame.draw.line(main_surface, 
                          line_colour,
                          (0, date_header_height),
@@ -442,15 +478,61 @@ def main():
                          (calendar_width, height),
                          line_width)
 
+        # Render the frames according to the current time
         t = datetime.datetime.now()
 
         date_surface.render(t)
         weather_surface.render(t)
         calendar_surface.render(t)
 
-        # Now that everything is drawn, put it on display!
-        pygame.display.flip()
-        time.sleep(5)
+        # Depending on where it is running, output the image
+
+        if on_kobo:
+            for row in range(main_surface.get_height()):
+                for col in range(main_surface.get_width()):
+                    buff.append(main_surface.get_at((col, row))[0])
+
+            try:
+                fout=open(filename, 'wb')
+            except IOError, er:
+                print "Cannot open file ", filename, "Exiting ... \n", er
+                sys.exit()
+
+            buff.tofile(fout)
+            fout.close()
+
+            os.system('cat %s | /usr/local/Kobo/pickel showpic' % filename)
+
+            if False:
+                os.system('killall wpa_supplicant')
+                os.system('wlarm_le -i eth0 down')
+                os.system('ifconfig eth0 down')
+                print "Going to sleep"
+                os.system('echo 30 > /sys/power/sleeptime')
+                os.system('echo "mem" > /sys/power/state')
+                os.system('rmmod dhd')
+                os.system('rmmod sdio_wifi_pwr')
+                os.system('insmod /drivers/m166e/wifi/dhd.ko')
+                os.system('insmod /drivers/m166e/wifi/sdio_wifi_pwr.ko')
+                os.system('/usr/local/Kobo/pickel wifion')
+                os.system('/usr/local/Kobo/pickel wifion')
+                time.sleep(1)
+                os.system('wlarm_le -i eth0 up')
+                os.system('ifconfig eth0 up')
+                os.system('wpa_supplicant -s -i eth0 -c /etc/wpa_supplicant/wpa_supplicant.conf -C /var/run/wpa_supplicant -B')
+                time.sleep(2)
+                os.system('udhcpc -S -i eth0 -s /etc/udhcpc.d/default.script -t15 -T3 -A1 -f -q')
+                os.system('ntpd -q -p pool.ntp.org -S /usr/local/Kobo/ntpd.sh')
+                time.sleep(30)
+                print "Awake"
+            else:
+                break
+        else:
+            pygame.display.flip()
+            time.sleep(5)
+            ev = pygame.event.poll()
+            if ev.type == pygame.QUIT:   # Window close button clicked?
+                break                    # Leave game loop
 
     pygame.quit()
 
