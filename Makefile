@@ -3,11 +3,14 @@
 #
 # Inspired by http://wiki.mobileread.com/wiki/Kobo_WiFi_Hacking
 #
+# http://www.scherello.de/?id=265
+# ftp://www.jlbec.org/pub/armlinux/people/xscale/mainstone/01-27-2005/README.txt
+#
 # I wanted to be able to build this from scratch and make it easy to add
 # different python libraries, etc.
 #
-# This project uses a Debian release that is close to what is on the Kobo,
-# and is relatively modern (Python 2.7).
+# This project uses a Debian release (Wheezy armel) that is close to what is
+# on the Kobo, and is relatively modern (Python 2.7).
 
 
 
@@ -168,7 +171,7 @@ forcast : downloads/python-forcast.io-$(FORCAST_SHA)
 # accessing the json data structure
 downloads/python-forcast.io-$(FORCAST_SHA) : downloads/$(FORCAST_SHA).zip \
 					     py-requests-backport.patch
-	cd downloads && unzip $(FORCAST_SHA).zip
+	cd downloads && unzip -o $(FORCAST_SHA).zip
 	cd downloads && patch -p0 < ../py-requests-backport.patch
 
 downloads/$(FORCAST_SHA).zip :
@@ -248,6 +251,10 @@ upload : root.tar.gz
 	curl -T root.tar.gz ftp://192.168.0.24/mnt/onboard/ \
 		--user anonymous:anonymous
 
+upload-script :
+	curl -T test-pygame.py ftp://192.168.0.24/mnt/onboard/ \
+		--user anonymous:anonymous
+
 .PHONY: clean
 clean :
 	rm -rf extract
@@ -255,11 +262,11 @@ clean :
 	rm -rf dep-tree
 	rm -f .extracted
 	rm -f root.tar.gz
-	rm -f ld-result.txt ld-result-filtered.txt 
+	rm -f ld-result.txt ld-result-filtered.txt
 	rm -f ld-result-filtered-notfound.txt
 
 clean-downloads :
-	rm -rf downloads/python-forcast.io-$(FORCAST_SHA) 
+	rm -rf downloads/python-forcast.io-$(FORCAST_SHA)
 	rm -f downloads/$(FORCAST_SHA).zip
 	rm -f downloads/rfc3339.py
 	rm -f downloads/meteocons.ttf
