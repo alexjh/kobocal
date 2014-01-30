@@ -29,6 +29,7 @@ default : all
 all : root.tar.gz
 
 DEBS = downloads/python-requests_0.12.1-1_all.deb \
+       downloads/i2c-tools_3.1.0-2_armel.deb \
   $(EXTRACT)/pool/main/p/pygame/python-pygame_1.9.1release+dfsg-8_armel.deb \
   $(EXTRACT)/pool/main/libg/libgdata/gir1.2-gdata-0.0_0.12.0-1_armel.deb \
   $(EXTRACT)/pool/main/libg/libgdata/libgdata-common_0.12.0-1_all.deb \
@@ -195,6 +196,10 @@ downloads/python-requests_0.12.1-1_all.deb:
 	mkdir -p downloads
 	wget http://ftp.us.debian.org/debian/pool/main/r/requests/python-requests_0.12.1-1_all.deb -O $@
 
+downloads/i2c-tools_3.1.0-2_armel.deb:
+	mkdir -p downloads
+	wget http://ftp.us.debian.org/debian/pool/main/i/i2c-tools/i2c-tools_3.1.0-2_armel.deb -O $@
+
 $(EXTRACT)/%deb : downloads/debian-7.3.0-armel-DVD-1.iso
 	mkdir -p $(@D)
 	isoinfo -i $< -RJ -x $(subst $(EXTRACT),,$@) > $@
@@ -205,6 +210,7 @@ $(EXTRACT)/%deb : downloads/debian-7.3.0-armel-DVD-1.iso
 	     downloads/python-forcast.io-$(FORCAST_SHA) \
 	     downloads/debian-7.3.0-armel-DVD-1.iso \
 	     downloads/python-requests_0.12.1-1_all.deb \
+	     downloads/i2c-tools_3.1.0-2_armel.deb \
 	     downloads/rfc3339.py \
 	     downloads/meteocons.ttf
 	mkdir -p root
@@ -272,6 +278,7 @@ clean-downloads :
 	rm -f downloads/rfc3339.py
 	rm -f downloads/meteocons.ttf
 	rm -f downloads/python-requests_0.12.1-1_all.deb
+	rm -f downloads/i2c-tools_3.1.0-2_armel.deb
 
 # A slightly hacky way of finding library dependencies as crosstool's ldd
 # doesn't allow additional dirs to be specified, move the files to where
