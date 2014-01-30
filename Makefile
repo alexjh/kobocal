@@ -210,37 +210,38 @@ $(EXTRACT)/%deb : downloads/debian-7.3.0-armel-DVD-1.iso
 	mkdir -p root
 	# .debs can contain a variety of archives, try gz, bz2, xz:
 	@ cd root && $(foreach var,$(DEBS),\
-		   (ar p ../$(var) data.tar.gz | tar zx) \
-		|| (ar p ../$(var) data.tar.xz | tar Jx) \
-		|| (ar p ../$(var) data.tar.bz2 | tar jx);)
-	rm -f root/bin/bunzip2 root/bin/bzcat
-	cp root/bin/bzip2 root/bin/bunzip2
-	cp root/bin/bzip2 root/bin/bzcat
-	rm -rf root/usr/include root/usr/share/{man,doc}
-	rm -rf root/usr/lib/python2.[56] root/usr/lib/pyshared/python2.6
-	rm -f root/usr/lib/python2.7/dist-packages/pygame/freesansbold.ttf
-	rm -f root/usr/share/pyshared/pygame/freesansbold.ttf
-	rm -f root/usr/lib/python2.7/sitecustomize.py
-	rm -f root/usr/lib/ssl/private root/usr/lib/ssl/openssl.cnf
-	rm -rf root/usr/share/terminfo
+		   (ar p ../$(var) data.tar.gz | tar zx) &> /dev/null \
+		|| (ar p ../$(var) data.tar.xz | tar Jx) &> /dev/null \
+		|| (ar p ../$(var) data.tar.bz2 | tar jx) &> /dev/null;)
+
+	# Generate SSL certificates needed by Python SSL modules
 	rm -f root/usr/lib/ssl/certs
 	mkdir -p root/etc/ssl/certs
 	find -L root/usr/share/ca-certificates -type f -name '*.crt' | \
 		while read crt; do cat "$$crt" >> \
 		root/etc/ssl/certs/ca-certificates.crt; done
-	cp root/usr/share/fonts/truetype/freefont/FreeSansBold.ttf \
-		root/usr/lib/python2.7/dist-packages/pygame/freesansbold.ttf
+
+	# Clean up unneeded files
+	rm -rf root/usr/include
+	rm -rf root/usr/lib/python2.[56] root/usr/lib/pyshared/python2.6
+	rm -f root/usr/lib/python2.7/sitecustomize.py
+	rm -f root/usr/lib/ssl/private root/usr/lib/ssl/openssl.cnf
+	rm -rf root/usr/share/{terminfo,man,doc}
+	rm -rf root/usr/share/locale
+
 	# The filesystem this will be extracted to is vfat, so symlinks aren't
 	# allowed. Dereference and copy them to where they're expected to be.
 	find root -type l -exec cp -L --recursive '{}' '{}'.dereferenced \;
 	find root -name \*dereferenced -exec rename .dereferenced "" {} \;
+	rm -rf root/usr/share/pyshared
+
+	# Add the extra packages
 	mkdir -p root/usr/lib/python2.7/dist-packages
 	cp downloads/rfc3339.py root/usr/lib/python2.7/dist-packages/
 	cp downloads/meteocons.ttf root/
 	cp -R downloads/python-forcast.io-$(FORCAST_SHA)/forecastio \
 		root/usr/lib/python2.7/dist-packages/
-	rm -rf root/usr/share/pyshared
-	rm -rf root/usr/share/locale
+
 	touch $@
 
 root.tar.gz : .extracted
