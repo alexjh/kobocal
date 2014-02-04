@@ -523,7 +523,9 @@ def main():
 
     if email == -1 \
             or password == -1 \
-            or forecast_key == -1:
+            or forecast_key == -1 \
+            or (-90 > latitude > 90) \
+            or (-180 > longitude > 180):
         print "Error reading config file"
         sys.exit(-1)
 
