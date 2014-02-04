@@ -68,12 +68,12 @@ class DateSurface():
         self.main_surface.blit(time_surface, (time_x, time_y))
 
 class CalendarSurface():
-    def __init__( self, 
-                  main_surface, 
-                  origin, 
-                  size, 
-                  text_colour, 
-                  email, 
+    def __init__( self,
+                  main_surface,
+                  origin,
+                  size,
+                  text_colour,
+                  email,
                   password ):
         self.main_surface = main_surface
         self.origin = origin
@@ -214,23 +214,23 @@ class WeatherSurface():
         # There is a limit to how many calls can be made to the forecast.io API.
         # Track the last update so we don't exceed the limit
         self.last_update = datetime.datetime.min
-    
+
         # Create a font for rendering weather icons
         self.weather_font = pygame.font.Font("meteocons.ttf", 100)
 
         # Possible icon text from forecast.io:
-        #   clear-day 
-        #   clear-night 
-        #   rain 
-        #   snow 
-        #   sleet 
-        #   wind 
-        #   fog 
-        #   cloudy 
-        #   partly-cloudy-day 
+        #   clear-day
+        #   clear-night
+        #   rain
+        #   snow
+        #   sleet
+        #   wind
+        #   fog
+        #   cloudy
+        #   partly-cloudy-day
         #   partly-cloudy-night
         #
-        
+
         self.font_lookup = {
            'clear-day' : 'B',
            'clear-night' : 'C',
@@ -467,12 +467,12 @@ def main():
         main_surface.fill(background_colour)
 
         # Add the borders
-        pygame.draw.line(main_surface, 
+        pygame.draw.line(main_surface,
                          line_colour,
                          (0, date_header_height),
                          (width, date_header_height),
                          line_width)
-        pygame.draw.line(main_surface, 
+        pygame.draw.line(main_surface,
                          line_colour,
                          (calendar_width, date_header_height),
                          (calendar_width, height),
