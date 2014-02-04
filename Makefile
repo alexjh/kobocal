@@ -261,6 +261,8 @@ upload : root.tar.gz
 upload-script :
 	curl -T test-pygame.py ftp://192.168.0.24/mnt/onboard/ \
 		--user anonymous:anonymous
+	curl -T run.sh ftp://192.168.0.24/mnt/onboard/ \
+		--user anonymous:anonymous
 
 .PHONY: clean
 clean :
