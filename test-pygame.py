@@ -68,6 +68,7 @@ sys.path.append('./downloads')
 sys.path.append('./downloads/python-forcast.io')
 from rfc3339 import rfc3339
 import forecastio
+import simplejson
 
 # TODO:
 #
@@ -114,6 +115,7 @@ class DateSurface():
 class CalendarSurface():
     FONT_SIZE = 36
     SECTION_SPACING = 20
+    REFRESH_TIME_MINUTES = 30
 
     def __init__( self,
                   main_surface,
@@ -129,7 +131,10 @@ class CalendarSurface():
         self.text_colour = text_colour
 
         self.cal_client = gdata.calendar.client.CalendarClient(source='kobo-cal')
-        self.cal_client.ClientLogin(email, password, self.cal_client.source)
+        try:
+            self.cal_client.ClientLogin(email, password, self.cal_client.source)
+        except gdata.client.BadAuthentication:
+            print "Failed to login to Google Data API, check username and password"
 
         self.last_update = datetime.datetime.min
 
@@ -139,7 +144,8 @@ class CalendarSurface():
         self.holidays = None
 
     def render(self, cur_time):
-        if cur_time > (self.last_update + datetime.timedelta(minutes=30)):
+        if cur_time > (self.last_update
+                + datetime.timedelta(minutes=self.REFRESH_TIME_MINUTES)):
             self.last_update = cur_time
             self.events, self.holidays = self.getCalendarData(cur_time)
         self.renderEvents()
@@ -248,10 +254,38 @@ class CalendarSurface():
 
 class WeatherSurface():
     FONT_SIZE = 36
-    WEATHER_ICON_SIZE = 100
     SECTION_SPACING = 10
+    REFRESH_TIME_MINUTES = 30
+    # Possible icon text from forecast.io:
+    #   clear-day
+    #   clear-night
+    #   rain
+    #   snow
+    #   sleet
+    #   wind
+    #   fog
+    #   cloudy
+    #   partly-cloudy-day
+    #   partly-cloudy-night
+    #
 
-    def __init__( self, main_surface, origin, size, text_colour, 
+    WEATHER_ICON_FONT = "meteocons.ttf"
+    WEATHER_ICON_SIZE = 100
+    WEATHER_ICON_LOOKUP = {
+        'clear-day' : 'B',
+        'clear-night' : 'C',
+        'rain' : 'R',
+        'snow' : 'W',
+        'sleet' : 'X',
+        'wind' : 'F',
+        'fog' : 'L',
+        'cloudy' : 'Y',
+        'partly-cloudy-day' : 'H',
+        'partly-cloudy-night' : 'I'
+        }
+
+
+    def __init__( self, main_surface, origin, size, text_colour,
                   api_key, lat, lon ):
         self.main_surface = main_surface
         self.origin = origin
@@ -268,43 +302,21 @@ class WeatherSurface():
         self.last_update = datetime.datetime.min
 
         # Create a font for rendering weather icons
-        self.weather_font = pygame.font.Font("meteocons.ttf",
+        self.weather_font = pygame.font.Font(self.WEATHER_ICON_FONT,
                                              self.WEATHER_ICON_SIZE)
-
-        # Possible icon text from forecast.io:
-        #   clear-day
-        #   clear-night
-        #   rain
-        #   snow
-        #   sleet
-        #   wind
-        #   fog
-        #   cloudy
-        #   partly-cloudy-day
-        #   partly-cloudy-night
-        #
-
-        self.font_lookup = {
-          'clear-day' : 'B',
-          'clear-night' : 'C',
-          'rain' : 'R',
-          'snow' : 'W',
-          'sleet' : 'X',
-          'wind' : 'F',
-          'fog' : 'L',
-          'cloudy' : 'Y',
-          'partly-cloudy-day' : 'H',
-          'partly-cloudy-night' : 'I'
-          }
 
         self.forecast = None
 
     def render(self, cur_time):
-        if cur_time > self.last_update + datetime.timedelta(minutes=30):
+        if cur_time > (self.last_update
+                + datetime.timedelta(minutes=self.REFRESH_TIME_MINUTES)):
             # Check for new forecast
-            self.forecast = forecastio.load_forecast(self.API_KEY,
-                                                    self.LAT,
-                                                    self.LON)
+            try:
+                self.forecast = forecastio.load_forecast(self.API_KEY,
+                                                         self.LAT,
+                                                         self.LON)
+            except simplejson.decoder.JSONDecodeError:
+                print "Error retrieving forecast, check Forecast.io key"
             self.last_update = cur_time
 
         self.renderForecast()
@@ -353,8 +365,8 @@ class WeatherSurface():
                                                       True,
                                                       self.text_colour)
 
-            if daily.icon in self.font_lookup:
-                weather_char = self.font_lookup[daily.icon]
+            if daily.icon in self.WEATHER_ICON_LOOKUP:
+                weather_char = self.WEATHER_ICON_LOOKUP[daily.icon]
             else:
                 weather_char = 'B'
 
