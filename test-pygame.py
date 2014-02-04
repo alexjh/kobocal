@@ -1,6 +1,44 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+# Kobo Calendar Station:
+#
+#      +---------------------------------+
+#      |      Date / Time                |
+#      |                                 |
+#      |                                 |
+#      +----------------+----------------+
+#      |                |                |
+#      | Today:         |  Temperature   |
+#      |                |                |
+#      | Tomorrow:      |                |
+#      |                |  Weather Icon  |
+#      | Holidays:      |                |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      |                |  Sunrise       |
+#      |                |  Sunset        |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      |                |                |
+#      +----------------+----------------+
+#
+#
+# There are a few dependencies needed to run this:
+#
+# * pygame
+# * Google Data API Python bindings
+# * forecast.io python bindings
+# * RFC3339 utility
+
+
+import argparse
 import platform
 import ConfigParser
 
@@ -16,29 +54,35 @@ import gdata.calendar.data
 import gdata.calendar.client
 import gdata.acl.data
 import atom
+
 import getopt
 import sys
 import string
+
 import time
 import datetime
 import dateutil.parser
+
+# sys.path modifications for testing on host
+sys.path.append('./downloads')
+sys.path.append('./downloads/python-forcast.io')
 from rfc3339 import rfc3339
-
-sys.path.append('./python-forcast.io/')
-sys.path.append('./python-forcast.io-d06ecd832c4490a5b19e7f3f5ae796eac33c1077')
-
 import forecastio
 
 # TODO:
 #
 # * Dynamically read screen size and adjust
 # * Intelligently schedule the next time to wake up
+# * List time for calendar events
 # * List today's holiday in the today pane
 # * Add a 'sleeps' countdown to holidays
 # * Add icons for events like soccer practice
 # * Phase of the moon icon
-# * Add shading to weather icon
 # * Show next day's sunrise/set if this one has already passed
+# * FIXME: validate text lengths to make sure they don't go outside their
+#   frame.
+# * FIXME: validate number of calendar items so they don't go off the
+#   bottom of the screen.
 
 class DateSurface():
     def __init__( self, main_surface, origin, size, text_colour ):
@@ -46,7 +90,7 @@ class DateSurface():
         self.origin = origin
         self.width, self.height = size
         self.font = pygame.font.SysFont("Monospace",
-                                        int((self.height / 2) * 0.9),
+                                        int((self.height / 2) * 0.98),
                                         bold=False)
         self.text_colour = text_colour
 
@@ -68,6 +112,9 @@ class DateSurface():
         self.main_surface.blit(time_surface, (time_x, time_y))
 
 class CalendarSurface():
+    FONT_SIZE = 36
+    SECTION_SPACING = 20
+
     def __init__( self,
                   main_surface,
                   origin,
@@ -78,7 +125,7 @@ class CalendarSurface():
         self.main_surface = main_surface
         self.origin = origin
         self.width, self.height = size
-        self.font = pygame.font.SysFont("Monospace", 32, bold=True)
+        self.font = pygame.font.SysFont("Monospace", self.FONT_SIZE, bold=True)
         self.text_colour = text_colour
 
         self.cal_client = gdata.calendar.client.CalendarClient(source='kobo-cal')
@@ -102,11 +149,11 @@ class CalendarSurface():
                                                 True,
                                                 self.text_colour)
         tomorrow_static_surface = self.font.render("Tomorrow:",
-                                                   True,
-                                                   self.text_colour)
+                                                  True,
+                                                  self.text_colour)
         holidays_static_surface = self.font.render("Next Holidays:",
-                                                   True,
-                                                   self.text_colour)
+                                                  True,
+                                                  self.text_colour)
         x = self.origin[0] + 10
         y = self.origin[1] + 10
 
@@ -126,12 +173,12 @@ class CalendarSurface():
 
         if not num_today:
             event_surface = self.font.render("Nothing scheduled",
-                                             True,
-                                             self.text_colour)
+                                            True,
+                                            self.text_colour)
             self.main_surface.blit(event_surface, (x+10,y))
             y += int(event_surface.get_size()[1] * 1.1)
 
-        y += 10
+        y += self.SECTION_SPACING
 
         self.main_surface.blit(tomorrow_static_surface, (x,y))
         y += int(tomorrow_static_surface.get_size()[1] * 1.1)
@@ -140,7 +187,7 @@ class CalendarSurface():
                 event_surface = self.font.render(e[0], True, self.text_colour)
                 self.main_surface.blit(event_surface, (x+10,y))
                 y += int(event_surface.get_size()[1] * 1.1)
-        y += 10
+        y += self.SECTION_SPACING
 
         self.main_surface.blit(holidays_static_surface, (x,y))
         y += int(holidays_static_surface.get_size()[1] * 1.1)
@@ -200,23 +247,29 @@ class CalendarSurface():
 
 
 class WeatherSurface():
-    def __init__( self, main_surface, origin, size, text_colour, api_key ):
+    FONT_SIZE = 36
+    WEATHER_ICON_SIZE = 100
+    SECTION_SPACING = 10
+
+    def __init__( self, main_surface, origin, size, text_colour, 
+                  api_key, lat, lon ):
         self.main_surface = main_surface
         self.origin = origin
         self.width, self.height = size
-        self.font = pygame.font.SysFont("Monospace", 32, bold=True)
+        self.font = pygame.font.SysFont("Monospace", self.FONT_SIZE, bold=True)
         self.text_colour = text_colour
 
         self.API_KEY = api_key
-        self.LAT = 49.2625
-        self.LON = -122.7811
+        self.LAT = lat
+        self.LON = lon
 
         # There is a limit to how many calls can be made to the forecast.io API.
         # Track the last update so we don't exceed the limit
         self.last_update = datetime.datetime.min
 
         # Create a font for rendering weather icons
-        self.weather_font = pygame.font.Font("meteocons.ttf", 100)
+        self.weather_font = pygame.font.Font("meteocons.ttf",
+                                             self.WEATHER_ICON_SIZE)
 
         # Possible icon text from forecast.io:
         #   clear-day
@@ -232,17 +285,17 @@ class WeatherSurface():
         #
 
         self.font_lookup = {
-           'clear-day' : 'B',
-           'clear-night' : 'C',
-           'rain' : 'R',
-           'snow' : 'W',
-           'sleet' : 'X',
-           'wind' : 'F',
-           'fog' : 'L',
-           'cloudy' : 'Y',
-           'partly-cloudy-day' : 'H',
-           'partly-cloudy-night' : 'I'
-           }
+          'clear-day' : 'B',
+          'clear-night' : 'C',
+          'rain' : 'R',
+          'snow' : 'W',
+          'sleet' : 'X',
+          'wind' : 'F',
+          'fog' : 'L',
+          'cloudy' : 'Y',
+          'partly-cloudy-day' : 'H',
+          'partly-cloudy-night' : 'I'
+          }
 
         self.forecast = None
 
@@ -250,14 +303,14 @@ class WeatherSurface():
         if cur_time > self.last_update + datetime.timedelta(minutes=30):
             # Check for new forecast
             self.forecast = forecastio.load_forecast(self.API_KEY,
-                                                     self.LAT,
-                                                     self.LON)
+                                                    self.LAT,
+                                                    self.LON)
             self.last_update = cur_time
 
         self.renderForecast()
 
     def renderForecast( self ):
-        # Frame should render:
+        # Frame renders:
         #
         # Current Temp:
         #    15 °C
@@ -280,56 +333,64 @@ class WeatherSurface():
         #
 
         if self.forecast:
+            daily = self.forecast.daily().data[0]
             cur_temp_static_surface = self.font.render("Current Temp:",
-                                                       True,
-                                                       self.text_colour)
-            cur_temp_data_surface = self.font.render(u"%d °C" % self.forecast.currently().temperature,
-                                                       True,
-                                                       self.text_colour)
-            high_temp_data_surface = self.font.render(u"High: %d °C" % self.forecast.daily().data[0].temperatureMax,
-                                                       True,
-                                                       self.text_colour)
-            low_temp_data_surface = self.font.render(u"Low: %d °C" % self.forecast.daily().data[0].temperatureMin,
-                                                       True,
-                                                       self.text_colour)
+                                                      True,
+                                                      self.text_colour)
+            cur_temp_data_surface = self.font.render(u"%d °C" % \
+                                        self.forecast.currently().temperature,
+                                        True,
+                                        self.text_colour)
+            high_temp_data_surface = self.font.render(u"High: %d °C" % \
+                                  daily.temperatureMax,
+                                  True,
+                                  self.text_colour)
+            low_temp_data_surface = self.font.render(u"Low: %d °C" % \
+                                daily.temperatureMin,
+                                True,
+                                self.text_colour)
             forecast_static_surface = self.font.render("Forecast:",
-                                                       True,
-                                                       self.text_colour)
+                                                      True,
+                                                      self.text_colour)
 
-            if self.forecast.daily().data[0].icon in self.font_lookup:
-                weather_char = self.font_lookup[self.forecast.daily().data[0].icon]
+            if daily.icon in self.font_lookup:
+                weather_char = self.font_lookup[daily.icon]
             else:
                 weather_char = 'B'
 
-            weather_surface = self.weather_font.render(weather_char, True, self.text_colour)
-            weather_surface2 = self.weather_font.render(weather_char, True, tuple( x + 80 for x in self.text_colour))
+            weather_surface = self.weather_font.render(weather_char,
+                                                      True,
+                                                      self.text_colour)
+            weather_surface2 = self.weather_font.render(weather_char,
+                                                        True,
+                                                        tuple( x + 80 for x in self.text_colour))
 
             precip_static_surface = self.font.render("Chance of Rain:",
-                                                       True,
-                                                       self.text_colour)
-            precip_data_surface = self.font.render("%s%%" % int(self.forecast.daily().data[0].precipProbability * 100),
-                                                       True,
-                                                       self.text_colour)
+                                                      True,
+                                                      self.text_colour)
+            precip_data_surface = self.font.render("%s%%" % int(daily.precipProbability * 100),
+                                                      True,
+                                                      self.text_colour)
 
             sunrise_static_surface = self.font.render("Sunrise:",
-                                                       True,
-                                                       self.text_colour)
-            sunrise_string = self.forecast.daily().data[0].sunriseTime.strftime("%I:%M %p")
+                                                      True,
+                                                      self.text_colour)
+            sunrise_string = daily.sunriseTime.strftime("%I:%M %p")
             if sunrise_string[0] == "0":
                 sunrise_string = sunrise_string[1:len(sunrise_string)]
             sunrise_data_surface = self.font.render("%s" % sunrise_string,
-                                                       True,
-                                                       self.text_colour)
+                                                      True,
+                                                      self.text_colour)
 
             sunset_static_surface = self.font.render("Sunset:",
-                                                       True,
-                                                       self.text_colour)
-            sunset_string = self.forecast.daily().data[0].sunsetTime.strftime("%I:%M %p")
+                                                      True,
+                                                      self.text_colour)
+            sunset_string = daily.sunsetTime.strftime("%I:%M %p")
             if sunset_string[0] == "0":
                 sunset_string = sunset_string[1:len(sunset_string)]
             sunset_data_surface = self.font.render("%s" % sunset_string,
-                                                       True,
-                                                       self.text_colour)
+                                                      True,
+                                                      self.text_colour)
 
             x = self.origin[0] + 10
             y = self.origin[1] + 10
@@ -342,24 +403,24 @@ class WeatherSurface():
             centered_x = center - cur_temp_data_surface.get_size()[0]/2
             self.main_surface.blit(cur_temp_data_surface, (centered_x,y))
             y += int(cur_temp_data_surface.get_size()[1] * 1.1)
-            y += 10
+            y += self.SECTION_SPACING
 
             self.main_surface.blit(high_temp_data_surface, (x,y))
             y += int(high_temp_data_surface.get_size()[1] * 1.1)
 
             self.main_surface.blit(low_temp_data_surface, (x,y))
             y += int(low_temp_data_surface.get_size()[1] * 1.1)
-            y += 10
+            y += self.SECTION_SPACING
 
             self.main_surface.blit(forecast_static_surface, (x,y))
             y += int(forecast_static_surface.get_size()[1] * 1.1)
-            y += 10
+            y += self.SECTION_SPACING
 
             centered_x = center - weather_surface.get_size()[0]/2
             self.main_surface.blit(weather_surface2, (centered_x + 3, y + 3))
             self.main_surface.blit(weather_surface, (centered_x,y))
             y += int(weather_surface.get_size()[1] * 1.1)
-            y += 10
+            y += self.SECTION_SPACING
 
             self.main_surface.blit(precip_static_surface, (x,y))
             y += int(precip_static_surface.get_size()[1] * 1.1)
@@ -367,7 +428,7 @@ class WeatherSurface():
             centered_x = center - precip_data_surface.get_size()[0]/2
             self.main_surface.blit(precip_data_surface, (centered_x,y))
             y += int(precip_data_surface.get_size()[1] * 1.1)
-            y += 10
+            y += self.SECTION_SPACING
 
             self.main_surface.blit(sunrise_static_surface, (x,y))
             y += int(sunrise_static_surface.get_size()[1] * 1.1)
@@ -383,19 +444,57 @@ class WeatherSurface():
             self.main_surface.blit(sunset_data_surface, (centered_x,y))
 
 
+def network_up():
+    os.system('insmod /drivers/netronix/wifi/sd8686.ko')
+    os.system('insmod /drivers/m166e/wifi/dhd.ko')
+    os.system('insmod /drivers/m166e/wifi/sdio_wifi_pwr.ko')
+    os.system('/usr/local/Kobo/pickel wifion')
+    os.system('/usr/local/Kobo/pickel wifion')
+    time.sleep(2)
+    os.system('wlarm_le -i eth0 up')
+    os.system('ifconfig eth0 up')
+    os.system('wpa_supplicant -s -i eth0 -c /etc/wpa_supplicant/wpa_supplicant.conf -C /var/run/wpa_supplicant -B')
+    time.sleep(2)
+    os.system('udhcpc -S -i eth0 -s /etc/udhcpc.d/default.script -t15 -T3 -A1 -f -q')
+    print "Network up"
+    time.sleep(2)
+    os.system('ntpd -q -p pool.ntp.org -S /usr/local/Kobo/ntpd.sh')
+    time.sleep(4)
+
+def network_down():
+    os.system('killall wpa_supplicant')
+    os.system('wlarm_le -i eth0 down')
+    os.system('ifconfig eth0 down')
+    os.system('rmmod dhd')
+    os.system('rmmod sdio_wifi_pwr')
+
 def main():
 
+    parser = argparse.ArgumentParser(description='Kobo Calendar')
+    parser.add_argument('--loop', '-l',
+                        dest='loop',
+                        help='Loop continuously',
+                        action='count')
+    args = parser.parse_args()
+
     # Behaviour changes depending on which platform we are on
-    on_kobo = (platform.machine() == 'armv5tejl')
+    on_kobo = ((platform.machine() == 'armv5tejl')
+            or (platform.machine() == 'armv6l'))
     filename = '/tmp/x.pgm'
 
     if on_kobo:
+        os.system('killall hindenburg &> /dev/null')
+        os.system('killall nickel &> /dev/null')
+        network_up()
+        # N647B can turn the LED off here, N647 turns off every loop
         os.system('/usr/local/Kobo/pickel blinkoff')
-        os.system('killall nickel')
 
     # Parse config file to pass items on to submodules
     config = ConfigParser.ConfigParser()
-    CFG_FILE = '../.kobocal'
+    if on_kobo:
+        CFG_FILE = '../.kobocal'
+    else:
+        CFG_FILE = '.kobocal'
     if config.read(CFG_FILE)[0] != CFG_FILE:
         print "Error reading config file"
         sys.exit(-1)
@@ -403,8 +502,16 @@ def main():
     email = config.get('main', 'email')
     password = config.get('main', 'password')
     forecast_key = config.get('main', 'forecast-key')
+    try:
+        latitude = config.getfloat('main', 'latitude')
+        longitude = config.getfloat('main', 'longitude')
+    except ConfigParser.NoOptionError:
+        print "Error reading config file: latitude / longitude incorrect"
+        sys.exit(-1)
 
-    if email == -1 or password == -1 or forecast_key == -1:
+    if email == -1 \
+            or password == -1 \
+            or forecast_key == -1:
         print "Error reading config file"
         sys.exit(-1)
 
@@ -421,7 +528,7 @@ def main():
 
     text_colour = (63,63,63)
 
-    date_header_height = 80
+    date_header_height = 110
     date_header_origin = (0,0)
     date_header_width = width
 
@@ -432,7 +539,7 @@ def main():
     weather_width = width - calendar_width - line_width
     weather_height = height - date_header_height - line_width
     weather_origin = ((calendar_width + line_width),
-                     (date_header_height + line_height))
+                    (date_header_height + line_height))
 
 
     # Create the pygame surfaces, they will be rendered to main_surface
@@ -444,21 +551,21 @@ def main():
         main_surface = pygame.display.set_mode((width, height))
 
     date_surface = DateSurface(main_surface,
-                               date_header_origin,
-                               (date_header_width,date_header_height),
-                               text_colour)
+                              date_header_origin,
+                              (date_header_width,date_header_height),
+                              text_colour)
 
     weather_surface = WeatherSurface(main_surface,
-                                     weather_origin,
-                                     (weather_width, weather_height),
-                                     text_colour,
-                                     forecast_key)
+                                    weather_origin,
+                                    (weather_width, weather_height),
+                                    text_colour,
+                                    forecast_key, latitude, longitude)
 
     calendar_surface = CalendarSurface(main_surface,
-                                       calendar_origin,
-                                       (calendar_width, calendar_height),
-                                       text_colour,
-                                       email, password)
+                                      calendar_origin,
+                                      (calendar_width, calendar_height),
+                                      text_colour,
+                                      email, password)
 
     while True:
         buff=array.array('B')
@@ -468,15 +575,15 @@ def main():
 
         # Add the borders
         pygame.draw.line(main_surface,
-                         line_colour,
-                         (0, date_header_height),
-                         (width, date_header_height),
-                         line_width)
+                        line_colour,
+                        (0, date_header_height),
+                        (width, date_header_height),
+                        line_width)
         pygame.draw.line(main_surface,
-                         line_colour,
-                         (calendar_width, date_header_height),
-                         (calendar_width, height),
-                         line_width)
+                        line_colour,
+                        (calendar_width, date_header_height),
+                        (calendar_width, height),
+                        line_width)
 
         # Render the frames according to the current time
         t = datetime.datetime.now()
@@ -486,7 +593,6 @@ def main():
         calendar_surface.render(t)
 
         # Depending on where it is running, output the image
-
         if on_kobo:
             for row in range(main_surface.get_height()):
                 for col in range(main_surface.get_width()):
@@ -502,29 +608,15 @@ def main():
             fout.close()
 
             os.system('cat %s | /usr/local/Kobo/pickel showpic' % filename)
+            # N647 seems to start blinking the LED whenever the screen is
+            # updated?
+            os.system('/usr/local/Kobo/pickel blinkoff')
 
-            if False:
-                os.system('killall wpa_supplicant')
-                os.system('wlarm_le -i eth0 down')
-                os.system('ifconfig eth0 down')
-                print "Going to sleep"
-                os.system('echo 30 > /sys/power/sleeptime')
-                os.system('echo "mem" > /sys/power/state')
-                os.system('rmmod dhd')
-                os.system('rmmod sdio_wifi_pwr')
-                os.system('insmod /drivers/m166e/wifi/dhd.ko')
-                os.system('insmod /drivers/m166e/wifi/sdio_wifi_pwr.ko')
-                os.system('/usr/local/Kobo/pickel wifion')
-                os.system('/usr/local/Kobo/pickel wifion')
-                time.sleep(1)
-                os.system('wlarm_le -i eth0 up')
-                os.system('ifconfig eth0 up')
-                os.system('wpa_supplicant -s -i eth0 -c /etc/wpa_supplicant/wpa_supplicant.conf -C /var/run/wpa_supplicant -B')
-                time.sleep(2)
-                os.system('udhcpc -S -i eth0 -s /etc/udhcpc.d/default.script -t15 -T3 -A1 -f -q')
-                os.system('ntpd -q -p pool.ntp.org -S /usr/local/Kobo/ntpd.sh')
-                time.sleep(30)
-                print "Awake"
+            if args.loop:
+                # TODO: FIXME: Get a working rtcwake utility
+                print "Sleeping...",
+                time.sleep(60)
+                print "awake"
             else:
                 break
         else:
@@ -536,5 +628,5 @@ def main():
 
     pygame.quit()
 
-
-main()
+if __name__ == "__main__":
+    main()
