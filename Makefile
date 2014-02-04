@@ -173,6 +173,8 @@ forcast : downloads/python-forcast.io-$(FORCAST_SHA)
 downloads/python-forcast.io-$(FORCAST_SHA) : downloads/$(FORCAST_SHA).zip \
 					     py-requests-backport.patch
 	cd downloads && unzip -o $(FORCAST_SHA).zip
+	# Make an unpatched version to run on the host
+	cp -R $@ downloads/python-forcast.io
 	cd downloads && patch -p0 < ../py-requests-backport.patch
 
 downloads/$(FORCAST_SHA).zip :
