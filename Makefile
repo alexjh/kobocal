@@ -208,6 +208,11 @@ $(EXTRACT)/%deb : downloads/debian-7.3.0-armel-DVD-1.iso
 
 ################################################################################
 
+.PHONY: host
+host : downloads/python-forcast.io-$(FORCAST_SHA) \
+       downloads/rfc3339.py \
+       downloads/meteocons.ttf
+
 .extracted : $(DEBS) \
 	     downloads/python-forcast.io-$(FORCAST_SHA) \
 	     downloads/debian-7.3.0-armel-DVD-1.iso \
