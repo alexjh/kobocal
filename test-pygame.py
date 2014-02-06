@@ -68,7 +68,6 @@ sys.path.append('./downloads')
 sys.path.append('./downloads/python-forcast.io')
 from rfc3339 import rfc3339
 import forecastio
-import simplejson
 
 # TODO:
 #
@@ -367,11 +366,14 @@ class WeatherSurface():
         if cur_time > (self.last_update
                 + datetime.timedelta(minutes=self.REFRESH_TIME_MINUTES)):
             # Check for new forecast
+            # Catching all exceptions is ugly, but different exceptions
+            # are thrown on host vs kobo.
+            # TODO Tune for different exceptions
             try:
                 self.forecast = forecastio.load_forecast(self.API_KEY,
                                                          self.LAT,
                                                          self.LON)
-            except simplejson.decoder.JSONDecodeError:
+            except:
                 print "Error retrieving forecast, check Forecast.io key"
             self.last_update = cur_time
 
