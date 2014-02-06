@@ -78,6 +78,7 @@ import forecastio
 # * Add icons for events like soccer practice
 # * Phase of the moon icon
 # * Show next day's sunrise/set if this one has already passed
+# * Clean up 0 prefixes in front of dates and times
 # * FIXME: validate text lengths to make sure they don't go outside their
 #   frame.
 # * FIXME: validate number of calendar items so they don't go off the
