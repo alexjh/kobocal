@@ -174,6 +174,25 @@ class CalendarSurface():
                 self.main_surface.blit(event_surface, (x+10,y))
                 y += int(event_surface.get_size()[1] * 1.1)
                 num_today += 1
+
+                # If date = today @ 12:00am - tomorrow @ 12:00am, assume an all day event,
+                # otherwise print the time range
+                # TODO Multi day events
+                
+                # Is this the best way to compare dates?
+                # Python timezones are causing pain here
+                e1_midnight = ( e[1].hour == 0
+                                and e[1].minute == 0
+                                and e[1].second == 0
+                                and e[1].microsecond == 0 )
+
+                if not (e1_midnight and (e[2] - e[1]) == datetime.timedelta(days=1)):
+                    text = "%s - %s" % ( e[1].strftime("%I:%M %p"),
+                                        e[2].strftime("%I:%M %p"))
+                    event_surface = self.font.render(text, True, self.text_colour)
+                    self.main_surface.blit(event_surface, (x+10,y))
+                    y += int(event_surface.get_size()[1] * 1.1)
+
             else:
                 break
 
@@ -188,11 +207,42 @@ class CalendarSurface():
 
         self.main_surface.blit(tomorrow_static_surface, (x,y))
         y += int(tomorrow_static_surface.get_size()[1] * 1.1)
+
+        num_tomorrow = 0
         for e in self.events:
             if e[1].date() >= end_of_day:
                 event_surface = self.font.render(e[0], True, self.text_colour)
                 self.main_surface.blit(event_surface, (x+10,y))
                 y += int(event_surface.get_size()[1] * 1.1)
+
+                # If date = today @ 12:00am - tomorrow @ 12:00am, assume an all day event,
+                # otherwise print the time range
+                # TODO Multi day events
+                
+                # Is this the best way to compare dates?
+                # Python timezones are causing pain here
+                e1_midnight = ( e[1].hour == 0
+                                and e[1].minute == 0
+                                and e[1].second == 0
+                                and e[1].microsecond == 0)
+
+                if not (e1_midnight and (e[2] - e[1]) == datetime.timedelta(days=1)):
+                    text = "%s - %s" % ( e[1].strftime("%I:%M %p"),
+                                        e[2].strftime("%I:%M %p"))
+                    event_surface = self.font.render(text, True, self.text_colour)
+                    self.main_surface.blit(event_surface, (x+10,y))
+                    y += int(event_surface.get_size()[1] * 1.1)
+
+                y += int(event_surface.get_size()[1] * 1.1)
+                num_tomorrow += 1
+
+        if not num_tomorrow:
+            event_surface = self.font.render("Nothing scheduled",
+                                            True,
+                                            self.text_colour)
+            self.main_surface.blit(event_surface, (x+10,y))
+            y += int(event_surface.get_size()[1] * 1.1)
+
         y += self.SECTION_SPACING
 
         self.main_surface.blit(holidays_static_surface, (x,y))
@@ -302,8 +352,12 @@ class WeatherSurface():
         self.last_update = datetime.datetime.min
 
         # Create a font for rendering weather icons
-        self.weather_font = pygame.font.Font(self.WEATHER_ICON_FONT,
-                                             self.WEATHER_ICON_SIZE)
+        try:
+            self.weather_font = pygame.font.Font(self.WEATHER_ICON_FONT,
+                                                 self.WEATHER_ICON_SIZE)
+        except IOError:
+            self.weather_font = pygame.font.Font("./downloads/" + self.WEATHER_ICON_FONT,
+                                                 self.WEATHER_ICON_SIZE)
 
         self.forecast = None
 
@@ -357,7 +411,7 @@ class WeatherSurface():
                                   daily.temperatureMax,
                                   True,
                                   self.text_colour)
-            low_temp_data_surface = self.font.render(u"Low: %d °C" % \
+            low_temp_data_surface = self.font.render(u"Low:  %d °C" % \
                                 daily.temperatureMin,
                                 True,
                                 self.text_colour)
@@ -507,7 +561,8 @@ def main():
         CFG_FILE = '../.kobocal'
     else:
         CFG_FILE = '.kobocal'
-    if config.read(CFG_FILE)[0] != CFG_FILE:
+
+    if not os.path.isfile(CFG_FILE) or (config.read(CFG_FILE)[0] != CFG_FILE):
         print "Error reading config file"
         sys.exit(-1)
 
