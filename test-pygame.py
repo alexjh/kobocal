@@ -74,7 +74,6 @@ import simplejson
 #
 # * Dynamically read screen size and adjust
 # * Intelligently schedule the next time to wake up
-# * List time for calendar events
 # * List today's holiday in the today pane
 # * Add a 'sleeps' countdown to holidays
 # * Add icons for events like soccer practice
@@ -248,7 +247,10 @@ class CalendarSurface():
         self.main_surface.blit(holidays_static_surface, (x,y))
         y += int(holidays_static_surface.get_size()[1] * 1.1)
         for e in self.holidays:
-            event_surface = self.font.render(e[0], True, self.text_colour)
+            # TODO nicely justify this (variable width font?)
+            text = "%s (%s)" % (e[0].ljust(20),
+                                e[1].strftime('%b %d'))
+            event_surface = self.font.render(text, True, self.text_colour)
             self.main_surface.blit(event_surface, (x+10,y))
             y += int(event_surface.get_size()[1] * 1.1)
 
