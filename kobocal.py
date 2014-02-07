@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+"""Kobo Calendar Station"""
 
 # Kobo Calendar Station:
 #
@@ -84,7 +85,9 @@ import forecastio
 # * FIXME: validate number of calendar items so they don't go off the
 #   bottom of the screen.
 
-class DateSurface():
+class DateSurface(object):
+    """Surface used to render date section"""
+
     def __init__( self, main_surface, origin, size, text_colour ):
         self.main_surface = main_surface
         self.origin = origin
@@ -100,7 +103,6 @@ class DateSurface():
         time_str = cur_time.strftime("%I:%M %p")
         if time_str[0] == "0":
             time_str = time_str[1:len(time_str)]
-        pad = (len(date_str) - len(time_str))/2
         date_surface = self.font.render(date_str, True, self.text_colour)
         time_surface = self.font.render(time_str, True, self.text_colour)
         date_x = self.origin[0] + (self.width - date_surface.get_size()[0]) / 2
@@ -111,7 +113,10 @@ class DateSurface():
         self.main_surface.blit(date_surface, (date_x, date_y))
         self.main_surface.blit(time_surface, (time_x, time_y))
 
-class CalendarSurface():
+
+class CalendarSurface(object):
+    """Surface used to render calendar section"""
+
     FONT_SIZE = 36
     SECTION_SPACING = 20
     REFRESH_TIME_MINUTES = 30
@@ -129,11 +134,13 @@ class CalendarSurface():
         self.font = pygame.font.SysFont("Monospace", self.FONT_SIZE, bold=True)
         self.text_colour = text_colour
 
-        self.cal_client = gdata.calendar.client.CalendarClient(source='kobo-cal')
+        self.cal_client = \
+                gdata.calendar.client.CalendarClient(source='kobo-cal')
         try:
             self.cal_client.ClientLogin(email, password, self.cal_client.source)
         except gdata.client.BadAuthentication:
-            print "Failed to login to Google Data API, check username and password"
+            print "Failed to login to Google Data API,", \
+                  "check username and password"
 
         self.last_update = datetime.datetime.min
 
@@ -143,11 +150,18 @@ class CalendarSurface():
         self.holidays = None
 
     def render(self, cur_time):
+        """Acquire data from Google API and render it to the parent surface."""
         if cur_time > (self.last_update
                 + datetime.timedelta(minutes=self.REFRESH_TIME_MINUTES)):
             self.last_update = cur_time
             self.events, self.holidays = self.getCalendarData(cur_time)
         self.renderEvents()
+
+    def isMidnight( self, date ):
+        return ( date.hour == 0
+             and date.minute == 0
+             and date.second == 0
+             and date.microsecond == 0 )
 
     def renderEvents(self):
         today_static_surface = self.font.render("Today:",
@@ -162,34 +176,33 @@ class CalendarSurface():
         x = self.origin[0] + 10
         y = self.origin[1] + 10
 
-        self.main_surface.blit(today_static_surface, (x,y))
+        self.main_surface.blit(today_static_surface, (x, y))
         y += int(today_static_surface.get_size()[1] * 1.1)
 
         end_of_day = datetime.date.today() + datetime.timedelta(days=1)
         num_today = 0
-        for e in self.events:
-            if e[1].date() < end_of_day:
-                event_surface = self.font.render(e[0], True, self.text_colour)
-                self.main_surface.blit(event_surface, (x+10,y))
+        for event in self.events:
+            if event[1].date() < end_of_day:
+                event_surface = self.font.render(event[0], True, self.text_colour)
+                self.main_surface.blit(event_surface, (x+10, y))
                 y += int(event_surface.get_size()[1] * 1.1)
                 num_today += 1
 
-                # If date = today @ 12:00am - tomorrow @ 12:00am, assume an all day event,
-                # otherwise print the time range
-                # TODO Multi day events
-                
-                # Is this the best way to compare dates?
-                # Python timezones are causing pain here
-                e1_midnight = ( e[1].hour == 0
-                                and e[1].minute == 0
-                                and e[1].second == 0
-                                and e[1].microsecond == 0 )
+                # If date = today @ 12:00am - tomorrow @ 12:00am, assume an all
+                # day event, otherwise print the time range.
 
-                if not (e1_midnight and (e[2] - e[1]) == datetime.timedelta(days=1)):
-                    text = "%s - %s" % ( e[1].strftime("%I:%M %p"),
-                                        e[2].strftime("%I:%M %p"))
-                    event_surface = self.font.render(text, True, self.text_colour)
-                    self.main_surface.blit(event_surface, (x+10,y))
+                # TODO Multi day events
+
+                # Is this the best way to compare dates?
+                # Python timezones are causing pain here.
+                if not (self.isMidnight(event[1])
+                       and (event[2] - event[1]) == datetime.timedelta(days=1)):
+                    text = "%s - %s" % (event[1].strftime("%I:%M %p"),
+                                        event[2].strftime("%I:%M %p"))
+                    event_surface = self.font.render(text,
+                                                     True,
+                                                     self.text_colour)
+                    self.main_surface.blit(event_surface, (x+10, y))
                     y += int(event_surface.get_size()[1] * 1.1)
 
             else:
@@ -199,37 +212,35 @@ class CalendarSurface():
             event_surface = self.font.render("Nothing scheduled",
                                             True,
                                             self.text_colour)
-            self.main_surface.blit(event_surface, (x+10,y))
+            self.main_surface.blit(event_surface, (x+10, y))
             y += int(event_surface.get_size()[1] * 1.1)
 
         y += self.SECTION_SPACING
 
-        self.main_surface.blit(tomorrow_static_surface, (x,y))
+        self.main_surface.blit(tomorrow_static_surface, (x, y))
         y += int(tomorrow_static_surface.get_size()[1] * 1.1)
 
         num_tomorrow = 0
-        for e in self.events:
-            if e[1].date() >= end_of_day:
-                event_surface = self.font.render(e[0], True, self.text_colour)
-                self.main_surface.blit(event_surface, (x+10,y))
+        for event in self.events:
+            if event[1].date() >= end_of_day:
+                event_surface = self.font.render(event[0], True, self.text_colour)
+                self.main_surface.blit(event_surface, (x+10, y))
                 y += int(event_surface.get_size()[1] * 1.1)
 
-                # If date = today @ 12:00am - tomorrow @ 12:00am, assume an all day event,
-                # otherwise print the time range
+                # If date = today @ 12:00am - tomorrow @ 12:00am, assume an all
+                # day event, otherwise print the time range
+
                 # TODO Multi day events
-                
+
                 # Is this the best way to compare dates?
                 # Python timezones are causing pain here
-                e1_midnight = ( e[1].hour == 0
-                                and e[1].minute == 0
-                                and e[1].second == 0
-                                and e[1].microsecond == 0)
-
-                if not (e1_midnight and (e[2] - e[1]) == datetime.timedelta(days=1)):
-                    text = "%s - %s" % ( e[1].strftime("%I:%M %p"),
-                                        e[2].strftime("%I:%M %p"))
-                    event_surface = self.font.render(text, True, self.text_colour)
-                    self.main_surface.blit(event_surface, (x+10,y))
+                if not (self.isMidnight(event[1]) and (event[2] - event[1]) == datetime.timedelta(days=1)):
+                    text = "%s - %s" % ( event[1].strftime("%I:%M %p"),
+                                        event[2].strftime("%I:%M %p"))
+                    event_surface = self.font.render(text,
+                                                     True,
+                                                     self.text_colour)
+                    self.main_surface.blit(event_surface, (x+10, y))
                     y += int(event_surface.get_size()[1] * 1.1)
 
                 y += int(event_surface.get_size()[1] * 1.1)
@@ -239,19 +250,19 @@ class CalendarSurface():
             event_surface = self.font.render("Nothing scheduled",
                                             True,
                                             self.text_colour)
-            self.main_surface.blit(event_surface, (x+10,y))
+            self.main_surface.blit(event_surface, (x+10, y))
             y += int(event_surface.get_size()[1] * 1.1)
 
         y += self.SECTION_SPACING
 
-        self.main_surface.blit(holidays_static_surface, (x,y))
+        self.main_surface.blit(holidays_static_surface, (x, y))
         y += int(holidays_static_surface.get_size()[1] * 1.1)
-        for e in self.holidays:
+        for event in self.holidays:
             # TODO nicely justify this (variable width font?)
-            text = "%s (%s)" % (e[0].ljust(20),
-                                e[1].strftime('%b %d'))
+            text = "%s (%s)" % (event[0].ljust(20),
+                                event[1].strftime('%b %d'))
             event_surface = self.font.render(text, True, self.text_colour)
-            self.main_surface.blit(event_surface, (x+10,y))
+            self.main_surface.blit(event_surface, (x+10, y))
             y += int(event_surface.get_size()[1] * 1.1)
 
     def getCalendarData(self, cur_time):
@@ -304,7 +315,7 @@ class CalendarSurface():
         return (events,holidays)
 
 
-class WeatherSurface():
+class WeatherSurface(object):
     FONT_SIZE = 36
     SECTION_SPACING = 10
     REFRESH_TIME_MINUTES = 30
@@ -345,9 +356,9 @@ class WeatherSurface():
         self.font = pygame.font.SysFont("Monospace", self.FONT_SIZE, bold=True)
         self.text_colour = text_colour
 
-        self.API_KEY = api_key
-        self.LAT = lat
-        self.LON = lon
+        self.api_key = api_key
+        self.lat = lat
+        self.lon = lon
 
         # There is a limit to how many calls can be made to the forecast.io API.
         # Track the last update so we don't exceed the limit
@@ -367,13 +378,11 @@ class WeatherSurface():
         if cur_time > (self.last_update
                 + datetime.timedelta(minutes=self.REFRESH_TIME_MINUTES)):
             # Check for new forecast
-            # Catching all exceptions is ugly, but different exceptions
-            # are thrown on host vs kobo.
             # TODO Tune for different exceptions
             try:
-                self.forecast = forecastio.load_forecast(self.API_KEY,
-                                                         self.LAT,
-                                                         self.LON)
+                self.forecast = forecastio.load_forecast(self.api_key,
+                                                         self.lat,
+                                                         self.lon)
             except:
                 print "Error retrieving forecast, check Forecast.io key"
             self.last_update = cur_time
@@ -468,54 +477,55 @@ class WeatherSurface():
 
             center = self.origin[0] + (self.width / 2)
 
-            self.main_surface.blit(cur_temp_static_surface, (x,y))
+            self.main_surface.blit(cur_temp_static_surface, (x, y))
             y += int(cur_temp_static_surface.get_size()[1] * 1.1)
 
             centered_x = center - cur_temp_data_surface.get_size()[0]/2
-            self.main_surface.blit(cur_temp_data_surface, (centered_x,y))
+            self.main_surface.blit(cur_temp_data_surface, (centered_x, y))
             y += int(cur_temp_data_surface.get_size()[1] * 1.1)
             y += self.SECTION_SPACING
 
-            self.main_surface.blit(high_temp_data_surface, (x,y))
+            self.main_surface.blit(high_temp_data_surface, (x, y))
             y += int(high_temp_data_surface.get_size()[1] * 1.1)
 
-            self.main_surface.blit(low_temp_data_surface, (x,y))
+            self.main_surface.blit(low_temp_data_surface, (x, y))
             y += int(low_temp_data_surface.get_size()[1] * 1.1)
             y += self.SECTION_SPACING
 
-            self.main_surface.blit(forecast_static_surface, (x,y))
+            self.main_surface.blit(forecast_static_surface, (x, y))
             y += int(forecast_static_surface.get_size()[1] * 1.1)
             y += self.SECTION_SPACING
 
             centered_x = center - weather_surface.get_size()[0]/2
             self.main_surface.blit(weather_surface2, (centered_x + 3, y + 3))
-            self.main_surface.blit(weather_surface, (centered_x,y))
+            self.main_surface.blit(weather_surface, (centered_x, y))
             y += int(weather_surface.get_size()[1] * 1.1)
             y += self.SECTION_SPACING
 
-            self.main_surface.blit(precip_static_surface, (x,y))
+            self.main_surface.blit(precip_static_surface, (x, y))
             y += int(precip_static_surface.get_size()[1] * 1.1)
 
             centered_x = center - precip_data_surface.get_size()[0]/2
-            self.main_surface.blit(precip_data_surface, (centered_x,y))
+            self.main_surface.blit(precip_data_surface, (centered_x, y))
             y += int(precip_data_surface.get_size()[1] * 1.1)
             y += self.SECTION_SPACING
 
-            self.main_surface.blit(sunrise_static_surface, (x,y))
+            self.main_surface.blit(sunrise_static_surface, (x, y))
             y += int(sunrise_static_surface.get_size()[1] * 1.1)
 
             centered_x = center - sunrise_data_surface.get_size()[0]/2
-            self.main_surface.blit(sunrise_data_surface, (centered_x,y))
+            self.main_surface.blit(sunrise_data_surface, (centered_x, y))
             y += int(sunrise_data_surface.get_size()[1] * 1.1)
 
-            self.main_surface.blit(sunset_static_surface, (x,y))
+            self.main_surface.blit(sunset_static_surface, (x, y))
             y += int(sunset_static_surface.get_size()[1] * 1.1)
 
             centered_x = center - sunset_data_surface.get_size()[0]/2
-            self.main_surface.blit(sunset_data_surface, (centered_x,y))
+            self.main_surface.blit(sunset_data_surface, (centered_x, y))
 
 
 def network_up():
+    """Brings the network up on N647 and N647B systems"""
     os.system('insmod /drivers/netronix/wifi/sd8686.ko')
     os.system('insmod /drivers/m166e/wifi/dhd.ko')
     os.system('insmod /drivers/m166e/wifi/sdio_wifi_pwr.ko')
@@ -532,12 +542,16 @@ def network_up():
     os.system('ntpd -q -p pool.ntp.org -S /usr/local/Kobo/ntpd.sh')
     time.sleep(4)
 
+
 def network_down():
+    """Brings the network down on N647 and N647B systems"""
     os.system('killall wpa_supplicant')
     os.system('wlarm_le -i eth0 down')
     os.system('ifconfig eth0 down')
     os.system('rmmod dhd')
     os.system('rmmod sdio_wifi_pwr')
+    os.system('rmmod sd8686')
+
 
 def main():
 
@@ -563,11 +577,11 @@ def main():
     # Parse config file to pass items on to submodules
     config = ConfigParser.ConfigParser()
     if on_kobo:
-        CFG_FILE = '../.kobocal'
+        cfg_file = '../.kobocal'
     else:
-        CFG_FILE = '.kobocal'
+        cfg_file = '.kobocal'
 
-    if not os.path.isfile(CFG_FILE) or (config.read(CFG_FILE)[0] != CFG_FILE):
+    if not os.path.isfile(cfg_file) or (config.read(cfg_file)[0] != cfg_file):
         print "Error reading config file"
         sys.exit(-1)
 
@@ -596,14 +610,14 @@ def main():
     # Set up some defaults and layout the screen
 
     line_width = line_height = 3
-    line_colour = (190,190,190)
+    line_colour = (190, 190, 190)
 
     background_colour = (255, 255, 255)
 
-    text_colour = (63,63,63)
+    text_colour = (63, 63, 63)
 
     date_header_height = 110
-    date_header_origin = (0,0)
+    date_header_origin = (0, 0)
     date_header_width = width
 
     calendar_height = weather_height = height - date_header_height - line_width
@@ -642,7 +656,7 @@ def main():
                                       email, password)
 
     while True:
-        buff=array.array('B')
+        buff = array.array('B')
 
         # Completely redraw the surface, starting with background
         main_surface.fill(background_colour)
@@ -660,11 +674,11 @@ def main():
                         line_width)
 
         # Render the frames according to the current time
-        t = datetime.datetime.now()
+        current_time = datetime.datetime.now()
 
-        date_surface.render(t)
-        weather_surface.render(t)
-        calendar_surface.render(t)
+        date_surface.render(current_time)
+        weather_surface.render(current_time)
+        calendar_surface.render(current_time)
 
         # Depending on where it is running, output the image
         if on_kobo:
@@ -673,9 +687,9 @@ def main():
                     buff.append(main_surface.get_at((col, row))[0])
 
             try:
-                fout=open(filename, 'wb')
-            except IOError, er:
-                print "Cannot open file ", filename, "Exiting ... \n", er
+                fout = open(filename, 'wb')
+            except IOError, error:
+                print "Cannot open file ", filename, "Exiting ... \n", error
                 sys.exit()
 
             buff.tofile(fout)
@@ -696,11 +710,12 @@ def main():
         else:
             pygame.display.flip()
             time.sleep(5)
-            ev = pygame.event.poll()
-            if ev.type == pygame.QUIT:   # Window close button clicked?
+            event = pygame.event.poll()
+            if event.type == pygame.QUIT:   # Window close button clicked?
                 break                    # Leave game loop
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
