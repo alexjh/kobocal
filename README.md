@@ -27,12 +27,12 @@ forums that someone else had already come up with this in 2012.
 
 A config file called '.kobocal' is needed:
 
-  [main]
-  email = example@example.com
-  password = secret
-  forecast-key = abcd1234
-  latitude = 0.0
-  longitude = 0.0
+    [main]
+    email = example@example.com
+    password = secret
+    forecast-key = abcd1234
+    latitude = 0.0
+    longitude = 0.0
 
 * Email and password are the Google account to use.
 * forecast-key is an API key from [forecast.io](https://developer.forecast.io/register)
