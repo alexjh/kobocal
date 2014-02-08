@@ -1,4 +1,4 @@
-= Kobo Family Calendar =
+# Kobo Family Calendar #
 
 I was inspired by the [Kobo Weather Station](http://www.mobileread.com/forums/showthread.php?t=194376)
 I saw on hackaday to build something with my Kobo Wifi. I picked up a broken
@@ -9,7 +9,7 @@ This project serves two purposes:
 * learning about the Google Data API.
 * teaching my kids about the weather and planning their day accordingly.
 
-== Usage ==
+## Usage ##
 
 I set up the Kobo to execute /mnt/sd/run.sh if it exists. This way I can insert
 the SD card with the project on it if it is to run in Calendar mode, and if I
@@ -17,13 +17,13 @@ want to run it in eReader mode, I simply remove the SD card.
 
 You can also run it on the host for faster testing.
 
-== Implementation ==
+## Implementation ##
 
 I took a shortcut to getting Python up and running by using the Debian Wheezy
 armel port. I thought I was rather clever until I discovered on the MobileRead
 forums that someone else had already come up with this in 2012.
 
-== Configuration ==
+## Configuration ##
 
 A config file called '.kobocal' is needed:
 
@@ -37,7 +37,7 @@ A config file called '.kobocal' is needed:
 * Email and password are the Google account to use.
 * forecast-key is an API key from [forecast.io](https://developer.forecast.io/register)
 
-== Installation ==
+## Installation ##
 
 Note that this has only been tested on a Kobo WiFi. Other models may need some
 different steps taken.
