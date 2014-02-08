@@ -1,9 +1,8 @@
 = Kobo Family Calendar =
 
-I was inspired by the [Kobo Weather
-Station](http://www.mobileread.com/forums/showthread.php?t=194376) I saw on
-hackaday to build something with my Kobo Wifi. I picked up a broken Kobo on
-Craigslist for experimentation as I was worried about bricking it.
+I was inspired by the [Kobo Weather Station](http://www.mobileread.com/forums/showthread.php?t=194376)
+I saw on hackaday to build something with my Kobo Wifi. I picked up a broken
+Kobo on Craigslist for experimentation as I was worried about bricking it.
 
 This project serves two purposes:
 
